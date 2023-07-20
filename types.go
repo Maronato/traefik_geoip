@@ -14,7 +14,7 @@ const Unknown = "XX"
 // DefaultDBPath default GeoIP2 database path.
 const DefaultDBPath = "GeoLite2-Country.mmdb"
 
-// Debug default.
+// DefaultDebug default debug var.
 const DefaultDebug = false
 
 const (
