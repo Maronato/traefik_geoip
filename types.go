@@ -3,6 +3,7 @@ package traefikgeoip2
 import (
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/IncSW/geoip2"
 )
@@ -13,22 +14,32 @@ const Unknown = "XX"
 // DefaultDBPath default GeoIP2 database path.
 const DefaultDBPath = "GeoLite2-Country.mmdb"
 
+// Debug default
+const DefaultDebug = false
+
 const (
 	// CountryHeader country header name.
-	CountryHeader = "X-GeoIP2-Country"
+	CountryHeader = "GeoIP-Country"
+	// CountryHeader country code header name.
+	CountryCodeHeader = "GeoIP-Country-Code"
 	// RegionHeader region header name.
-	RegionHeader = "X-GeoIP2-Region"
+	RegionHeader = "GeoIP-Region"
 	// CityHeader city header name.
-	CityHeader = "X-GeoIP2-City"
-	// IPAddressHeader city header name.
-	IPAddressHeader = "X-GeoIP2-IPAddress"
+	CityHeader = "GeoIP-City"
+	// LatitudeHeader latitude header name.
+	LatitudeHeader = "GeoIP-Latitude"
+	// LongitudeHeader longitude header name.
+	LongitudeHeader = "GeoIP-Longitude"
 )
 
 // GeoIPResult GeoIPResult.
 type GeoIPResult struct {
-	country string
-	region  string
-	city    string
+	country     string
+	countryCode string
+	region      string
+	city        string
+	latitude    string
+	longitude   string
 }
 
 // LookupGeoIP2 LookupGeoIP2.
@@ -42,9 +53,15 @@ func CreateCityDBLookup(rdr *geoip2.CityReader) LookupGeoIP2 {
 			return nil, fmt.Errorf("%w", err)
 		}
 		retval := GeoIPResult{
-			country: rec.Country.ISOCode,
-			region:  Unknown,
-			city:    Unknown,
+			country:     Unknown,
+			countryCode: rec.Country.ISOCode,
+			region:      Unknown,
+			city:        Unknown,
+			latitude:    strconv.FormatFloat(rec.Location.Latitude, 'f', -1, 64),
+			longitude:   strconv.FormatFloat(rec.Location.Longitude, 'f', -1, 64),
+		}
+		if country, ok := rec.Country.Names["en"]; ok {
+			retval.country = country
 		}
 		if city, ok := rec.City.Names["en"]; ok {
 			retval.city = city
@@ -64,9 +81,15 @@ func CreateCountryDBLookup(rdr *geoip2.CountryReader) LookupGeoIP2 {
 			return nil, fmt.Errorf("%w", err)
 		}
 		retval := GeoIPResult{
-			country: rec.Country.ISOCode,
-			region:  Unknown,
-			city:    Unknown,
+			country:     Unknown,
+			countryCode: rec.Country.ISOCode,
+			region:      Unknown,
+			city:        Unknown,
+			latitude:    Unknown,
+			longitude:   Unknown,
+		}
+		if country, ok := rec.Country.Names["en"]; ok {
+			retval.country = country
 		}
 		return &retval, nil
 	}

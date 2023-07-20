@@ -13,6 +13,7 @@ import (
 )
 
 var lookup LookupGeoIP2
+var debug bool
 
 // ResetLookup reset lookup function.
 func ResetLookup() {
@@ -22,12 +23,14 @@ func ResetLookup() {
 // Config the plugin configuration.
 type Config struct {
 	DBPath string `json:"dbPath,omitempty"`
+	Debug  bool   `json:"debug,omitempty"`
 }
 
 // CreateConfig creates the default plugin configuration.
 func CreateConfig() *Config {
 	return &Config{
 		DBPath: DefaultDBPath,
+		Debug:  DefaultDebug,
 	}
 }
 
@@ -39,6 +42,9 @@ type TraefikGeoIP2 struct {
 
 // New created a new TraefikGeoIP2 plugin.
 func New(_ context.Context, next http.Handler, cfg *Config, name string) (http.Handler, error) {
+
+	debug = cfg.Debug
+
 	if _, err := os.Stat(cfg.DBPath); err != nil {
 		log.Printf("[geoip2] DB not found: db=%s, name=%s, err=%v", cfg.DBPath, name, err)
 		return &TraefikGeoIP2{
@@ -76,9 +82,11 @@ func New(_ context.Context, next http.Handler, cfg *Config, name string) (http.H
 func (mw *TraefikGeoIP2) ServeHTTP(reqWr http.ResponseWriter, req *http.Request) {
 	if lookup == nil {
 		req.Header.Set(CountryHeader, Unknown)
+		req.Header.Set(CountryCodeHeader, Unknown)
 		req.Header.Set(RegionHeader, Unknown)
 		req.Header.Set(CityHeader, Unknown)
-		req.Header.Set(IPAddressHeader, Unknown)
+		req.Header.Set(LatitudeHeader, Unknown)
+		req.Header.Set(LongitudeHeader, Unknown)
 		mw.next.ServeHTTP(reqWr, req)
 		return
 	}
@@ -91,18 +99,25 @@ func (mw *TraefikGeoIP2) ServeHTTP(reqWr http.ResponseWriter, req *http.Request)
 
 	res, err := lookup(net.ParseIP(ipStr))
 	if err != nil {
-		log.Printf("[geoip2] Unable to find: ip=%s, err=%v", ipStr, err)
+		if debug {
+			log.Printf("[geoip2] lookup error: ip=%s, name=%s, err=%v", ipStr, mw.name, err)
+		}
 		res = &GeoIPResult{
-			country: Unknown,
-			region:  Unknown,
-			city:    Unknown,
+			country:     Unknown,
+			countryCode: Unknown,
+			region:      Unknown,
+			city:        Unknown,
+			latitude:    Unknown,
+			longitude:   Unknown,
 		}
 	}
 
 	req.Header.Set(CountryHeader, res.country)
+	req.Header.Set(CountryCodeHeader, res.countryCode)
 	req.Header.Set(RegionHeader, res.region)
 	req.Header.Set(CityHeader, res.city)
-	req.Header.Set(IPAddressHeader, ipStr)
+	req.Header.Set(LatitudeHeader, res.latitude)
+	req.Header.Set(LongitudeHeader, res.longitude)
 
 	mw.next.ServeHTTP(reqWr, req)
 }
