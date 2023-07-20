@@ -1,4 +1,4 @@
-package traefikgeoip2_test
+package traefikgeoip_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	mw "github.com/Maronato/traefikgeoip2"
+	mw "github.com/Maronato/traefikgeoip"
 )
 
 const (
@@ -43,7 +43,7 @@ func TestGeoIPBasic(t *testing.T) {
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) { called = true })
 
 	mw.ResetLookup()
-	instance, err := mw.New(context.TODO(), next, mwCfg, "traefik-geoip2")
+	instance, err := mw.New(context.TODO(), next, mwCfg, "traefik-")
 	if err != nil {
 		t.Fatalf("Error creating %v", err)
 	}
@@ -68,7 +68,7 @@ func TestMissingGeoIPDB(t *testing.T) {
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) { called = true })
 
 	mw.ResetLookup()
-	instance, err := mw.New(context.TODO(), next, mwCfg, "traefik-geoip2")
+	instance, err := mw.New(context.TODO(), next, mwCfg, "traefik-")
 	if err != nil {
 		t.Fatalf("Error creating %v", err)
 	}
@@ -84,12 +84,12 @@ func TestMissingGeoIPDB(t *testing.T) {
 	if called != true {
 		t.Fatalf("next handler was not called")
 	}
-	assertHeader(t, req, mw.CountryHeader, mw.Unknown)
-	assertHeader(t, req, mw.CountryCodeHeader, mw.Unknown)
-	assertHeader(t, req, mw.RegionHeader, mw.Unknown)
-	assertHeader(t, req, mw.CityHeader, mw.Unknown)
-	assertHeader(t, req, mw.LatitudeHeader, mw.Unknown)
-	assertHeader(t, req, mw.LongitudeHeader, mw.Unknown)
+	assertHeader(t, req, mw.CountryHeader, "")
+	assertHeader(t, req, mw.CountryCodeHeader, "")
+	assertHeader(t, req, mw.RegionHeader, "")
+	assertHeader(t, req, mw.CityHeader, "")
+	assertHeader(t, req, mw.LatitudeHeader, "")
+	assertHeader(t, req, mw.LongitudeHeader, "")
 }
 
 func TestGeoIPFromRemoteAddr(t *testing.T) {
@@ -99,7 +99,7 @@ func TestGeoIPFromRemoteAddr(t *testing.T) {
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 	mw.ResetLookup()
-	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik-geoip2")
+	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik-geoip")
 
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
@@ -116,20 +116,20 @@ func TestGeoIPFromRemoteAddr(t *testing.T) {
 	instance.ServeHTTP(httptest.NewRecorder(), req)
 	assertHeader(t, req, mw.CountryHeader, "United States")
 	assertHeader(t, req, mw.CountryCodeHeader, "US")
-	assertHeader(t, req, mw.RegionHeader, mw.Unknown)
-	assertHeader(t, req, mw.CityHeader, mw.Unknown)
+	assertHeader(t, req, mw.RegionHeader, "")
+	assertHeader(t, req, mw.CityHeader, "")
 	assertHeader(t, req, mw.LatitudeHeader, "37.751")
 	assertHeader(t, req, mw.LongitudeHeader, "-97.822")
 
 	req = httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.RemoteAddr = "qwerty:9999"
 	instance.ServeHTTP(httptest.NewRecorder(), req)
-	assertHeader(t, req, mw.CountryHeader, mw.Unknown)
-	assertHeader(t, req, mw.CountryCodeHeader, mw.Unknown)
-	assertHeader(t, req, mw.RegionHeader, mw.Unknown)
-	assertHeader(t, req, mw.CityHeader, mw.Unknown)
-	assertHeader(t, req, mw.LatitudeHeader, mw.Unknown)
-	assertHeader(t, req, mw.LongitudeHeader, mw.Unknown)
+	assertHeader(t, req, mw.CountryHeader, "")
+	assertHeader(t, req, mw.CountryCodeHeader, "")
+	assertHeader(t, req, mw.RegionHeader, "")
+	assertHeader(t, req, mw.CityHeader, "")
+	assertHeader(t, req, mw.LatitudeHeader, "")
+	assertHeader(t, req, mw.LongitudeHeader, "")
 }
 
 func TestGeoIPCountryDBFromRemoteAddr(t *testing.T) {
@@ -138,7 +138,7 @@ func TestGeoIPCountryDBFromRemoteAddr(t *testing.T) {
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 	mw.ResetLookup()
-	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik-geoip2")
+	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik-geoip")
 
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
@@ -146,10 +146,52 @@ func TestGeoIPCountryDBFromRemoteAddr(t *testing.T) {
 
 	assertHeader(t, req, mw.CountryHeader, "Germany")
 	assertHeader(t, req, mw.CountryCodeHeader, "DE")
-	assertHeader(t, req, mw.RegionHeader, mw.Unknown)
-	assertHeader(t, req, mw.CityHeader, mw.Unknown)
-	assertHeader(t, req, mw.LatitudeHeader, mw.Unknown)
-	assertHeader(t, req, mw.LongitudeHeader, mw.Unknown)
+	assertHeader(t, req, mw.RegionHeader, "")
+	assertHeader(t, req, mw.CityHeader, "")
+	assertHeader(t, req, mw.LatitudeHeader, "")
+	assertHeader(t, req, mw.LongitudeHeader, "")
+}
+
+func TestIgnoresExcludedIPs(t *testing.T) {
+	mwCfg := mw.CreateConfig()
+	mwCfg.DBPath = "./GeoLite2-City.mmdb"
+	mwCfg.Debug = true
+	mwCfg.ExcludeIPs = []string{ValidIP}
+
+	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
+	mw.ResetLookup()
+	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik-geoip")
+
+	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
+	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
+	instance.ServeHTTP(httptest.NewRecorder(), req)
+	assertHeader(t, req, mw.CountryHeader, "")
+	assertHeader(t, req, mw.CountryCodeHeader, "")
+	assertHeader(t, req, mw.RegionHeader, "")
+	assertHeader(t, req, mw.CityHeader, "")
+	assertHeader(t, req, mw.LatitudeHeader, "")
+	assertHeader(t, req, mw.LongitudeHeader, "")
+}
+
+func TestHandleInvalidExcludeIP(t *testing.T) {
+	mwCfg := mw.CreateConfig()
+	mwCfg.DBPath = "./GeoLite2-City.mmdb"
+	mwCfg.Debug = true
+	mwCfg.ExcludeIPs = []string{"invalid"}
+
+	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
+	mw.ResetLookup()
+	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik-geoip")
+
+	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
+	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
+	instance.ServeHTTP(httptest.NewRecorder(), req)
+	assertHeader(t, req, mw.CountryHeader, "Germany")
+	assertHeader(t, req, mw.CountryCodeHeader, "DE")
+	assertHeader(t, req, mw.RegionHeader, "BY")
+	assertHeader(t, req, mw.CityHeader, "Munich")
+	assertHeader(t, req, mw.LatitudeHeader, "48.1663")
+	assertHeader(t, req, mw.LongitudeHeader, "11.5683")
 }
 
 func assertHeader(t *testing.T, req *http.Request, key, expected string) {

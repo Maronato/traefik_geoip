@@ -1,4 +1,4 @@
-module github.com/Maronato/traefikgeoip2
+module github.com/Maronato/traefikgeoip
 
 go 1.19
 

@@ -1,4 +1,4 @@
-package traefikgeoip2
+package traefikgeoip
 
 import (
 	"fmt"
@@ -42,11 +42,11 @@ type GeoIPResult struct {
 	longitude   string
 }
 
-// LookupGeoIP2 LookupGeoIP2.
-type LookupGeoIP2 func(ip net.IP) (*GeoIPResult, error)
+// LookupGeoIP LookupGeoIP.
+type LookupGeoIP func(ip net.IP) (*GeoIPResult, error)
 
 // CreateCityDBLookup CreateCityDBLookup.
-func CreateCityDBLookup(rdr *geoip2.CityReader) LookupGeoIP2 {
+func CreateCityDBLookup(rdr *geoip2.CityReader) LookupGeoIP {
 	return func(ip net.IP) (*GeoIPResult, error) {
 		rec, err := rdr.Lookup(ip)
 		if err != nil {
@@ -74,7 +74,7 @@ func CreateCityDBLookup(rdr *geoip2.CityReader) LookupGeoIP2 {
 }
 
 // CreateCountryDBLookup CreateCountryDBLookup.
-func CreateCountryDBLookup(rdr *geoip2.CountryReader) LookupGeoIP2 {
+func CreateCountryDBLookup(rdr *geoip2.CountryReader) LookupGeoIP {
 	return func(ip net.IP) (*GeoIPResult, error) {
 		rec, err := rdr.Lookup(ip)
 		if err != nil {
