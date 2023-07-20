@@ -1,4 +1,11 @@
-# Traefik plugin for MaxMind GeoIP2
+# Traefik plugin for MaxMind GeoIP
+
+This is a modified version of [GiGInnovationLabs/traefikgeoip2](https://github.com/GiGInnovationLabs/traefikgeoip2) that changes the following:
+- Invalid IP errors are hidden by default, and can be displayed by setting the `debug: true` config
+- It adds latitude, longitude, and the country name (moving the country code to CountryCode)
+- It removes the `X-` from the header names, per [RFC 6648](https://www.rfc-editor.org/rfc/rfc6648).
+
+---
 
 [Traefik](https://doc.traefik.io/traefik/) plugin 
 that registers a custom middleware 
