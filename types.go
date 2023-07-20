@@ -14,13 +14,13 @@ const Unknown = "XX"
 // DefaultDBPath default GeoIP2 database path.
 const DefaultDBPath = "GeoLite2-Country.mmdb"
 
-// Debug default
+// Debug default.
 const DefaultDebug = false
 
 const (
 	// CountryHeader country header name.
 	CountryHeader = "GeoIP-Country"
-	// CountryHeader country code header name.
+	// CountryCodeHeader country code header name.
 	CountryCodeHeader = "GeoIP-Country-Code"
 	// RegionHeader region header name.
 	RegionHeader = "GeoIP-Region"
