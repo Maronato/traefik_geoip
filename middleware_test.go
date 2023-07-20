@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	mw "github.com/Maronato/traefikgeoip"
+	mw "github.com/Maronato/traefik-geoip"
 )
 
 const (
