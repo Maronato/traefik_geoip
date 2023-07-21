@@ -1,5 +1,5 @@
 // Package traefik_geoip is a Traefik plugin for Maxmind GeoIP2.
-package traefik_geoip
+package traefik_geoip //nolint:revive,stylecheck
 
 import (
 	"context"
@@ -8,31 +8,36 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/IncSW/geoip2"
 )
 
-var lookup LookupGeoIP
-var debug bool
-
-// ResetLookup reset lookup function.
-func ResetLookup() {
-	lookup = nil
-}
+const (
+	// DefaultDBPath default GeoIP2 database path.
+	DefaultDBPath = "GeoLite2-Country.mmdb"
+	// defaultDebug default debug.
+	defaultDebug = false
+	// defaultSetRealIP default set real IP.
+	defaultSetRealIP = false
+	// defaultCacheSize default cache size.
+	defaultCacheSize = 1000
+)
 
 // Config the plugin configuration.
 type Config struct {
 	DBPath     string   `json:"dbPath,omitempty"`
 	Debug      bool     `json:"debug,omitempty"`
 	ExcludeIPs []string `json:"excludeIPs,omitempty"`
+	SetRealIP  bool     `json:"setRealIP,omitempty"` //nolint:tagliatelle
+	CacheSize  int      `json:"cacheSize,omitempty"`
 }
 
 // CreateConfig creates the default plugin configuration.
 func CreateConfig() *Config {
 	return &Config{
 		DBPath:     DefaultDBPath,
-		Debug:      DefaultDebug,
+		Debug:      defaultDebug,
 		ExcludeIPs: []string{},
+		SetRealIP:  defaultSetRealIP,
+		CacheSize:  defaultCacheSize,
 	}
 }
 
@@ -40,53 +45,31 @@ func CreateConfig() *Config {
 type TraefikGeoIP struct {
 	next       http.Handler
 	name       string
-	ExcludeIPs []*net.IPNet
+	excludeIPs []*net.IPNet
+	lookup     LookupGeoIP
+	debug      bool
+	setRealIP  bool
 }
 
 // New created a new TraefikGeoIP plugin.
 func New(_ context.Context, next http.Handler, cfg *Config, name string) (http.Handler, error) {
-	debug = cfg.Debug
+	debug := cfg.Debug
 
 	if debug {
 		log.Printf("[geoip] setting up plugin: config=%v", cfg)
 	}
 
 	if _, err := os.Stat(cfg.DBPath); err != nil {
+		return nil, err
+	}
+
+	// Initialize the lookup DB.
+	lookup, err := NewLookup(cfg.DBPath, cfg.CacheSize)
+	if err != nil {
 		if debug {
-			log.Printf("[geoip] DB not found: db=%s, name=%s, err=%v", cfg.DBPath, name, err)
+			log.Printf("[geoip] error initializing lookup: err=%v", err)
 		}
-		return &TraefikGeoIP{
-			next: next,
-			name: name,
-		}, nil
-	}
-
-	if lookup == nil && strings.Contains(cfg.DBPath, "City") {
-		rdr, err := geoip2.NewCityReaderFromFile(cfg.DBPath)
-		if err != nil {
-			if debug {
-				log.Printf("[geoip] lookup DB is not initialized: db=%s, name=%s, err=%v", cfg.DBPath, name, err)
-			}
-		} else {
-			lookup = CreateCityDBLookup(rdr)
-			if debug {
-				log.Printf("[geoip] lookup DB initialized: db=%s, name=%s, lookup=%v", cfg.DBPath, name, lookup)
-			}
-		}
-	}
-
-	if lookup == nil && strings.Contains(cfg.DBPath, "Country") {
-		rdr, err := geoip2.NewCountryReaderFromFile(cfg.DBPath)
-		if err != nil {
-			if debug {
-				log.Printf("[geoip] lookup DB is not initialized: db=%s, name=%s, err=%v", cfg.DBPath, name, err)
-			}
-		} else {
-			lookup = CreateCountryDBLookup(rdr)
-			if debug {
-				log.Printf("[geoip] lookup DB initialized: db=%s, name=%s, lookup=%v", cfg.DBPath, name, lookup)
-			}
-		}
+		return nil, err
 	}
 
 	// Parse CIDRs and store them in a slice for exclusion.
@@ -113,13 +96,16 @@ func New(_ context.Context, next http.Handler, cfg *Config, name string) (http.H
 	return &TraefikGeoIP{
 		next:       next,
 		name:       name,
-		ExcludeIPs: excludedIPs,
+		excludeIPs: excludedIPs,
+		lookup:     lookup,
+		debug:      debug,
+		setRealIP:  cfg.SetRealIP,
 	}, nil
 }
 
 // isExcluded checks if the IP is in the exclude list.
 func (mw *TraefikGeoIP) isExcluded(ip net.IP) bool {
-	for _, net := range mw.ExcludeIPs {
+	for _, net := range mw.excludeIPs {
 		if net.Contains(ip) {
 			return true
 		}
@@ -128,16 +114,7 @@ func (mw *TraefikGeoIP) isExcluded(ip net.IP) bool {
 	return false
 }
 
-// ProcessRequest processes the request and adds geo headers if the IP is in the database.
-func (mw *TraefikGeoIP) ProcessRequest(req *http.Request) *http.Request {
-	// Only process if the plugin was initialized
-	if lookup == nil {
-		if debug {
-			log.Printf("[geoip] lookup is not initialized: name=%s", mw.name)
-		}
-		return req
-	}
-
+func (mw *TraefikGeoIP) getClientIP(req *http.Request) net.IP {
 	// Get first IP from X-Forwarded-For header if it exists.
 	ipStr := ""
 	if xff := req.Header.Get("X-Forwarded-For"); xff != "" {
@@ -158,32 +135,65 @@ func (mw *TraefikGeoIP) ProcessRequest(req *http.Request) *http.Request {
 
 	// Parse the IP.
 	ip := net.ParseIP(ipStr)
-
-	// Set X-Real-Ip header because traefik sometimes messes with it.
-	req.Header.Set("X-Real-IP", ipStr)
+	if ip == nil && mw.debug {
+		log.Printf("[geoip] unable to parse IP: ip=%s, name=%s", ipStr, mw.name)
+		return ip
+	}
 
 	// Only process IPs not in the exclude list.
 	if mw.isExcluded(ip) {
-		if debug {
+		if mw.debug {
 			log.Printf("[geoip] IP excluded: ip=%s, name=%s", ipStr, mw.name)
 		}
+		ip = nil
+	}
+
+	return ip
+}
+
+// processRequest processes the request and adds geo headers if the IP is in the database.
+func (mw *TraefikGeoIP) processRequest(req *http.Request) *http.Request {
+	// Get the client IP.
+	ip := mw.getClientIP(req)
+
+	// If the IP is nil, return the request unchanged.
+	if ip == nil {
 		return req
+	}
+
+	// Set X-Real-Ip header because traefik sometimes messes with it.
+	if mw.setRealIP {
+		req.Header.Set("X-Real-Ip", ip.String())
 	}
 
 	// Lookup the IP.
-	result, err := lookup(ip)
+	result, err := mw.lookup(ip)
 	if err != nil {
-		if debug {
-			log.Printf("[geoip] lookup error: ip=%s, name=%s, err=%v", ipStr, mw.name, err)
+		if mw.debug {
+			log.Printf("[geoip] lookup error: ip=%v, name=%s, err=%v", ip, mw.name, err)
 		}
 		return req
 	}
 
-	if debug {
-		log.Printf("[geoip] lookup result: ip=%s, name=%s, result=%v", ipStr, mw.name, result)
+	if mw.debug {
+		log.Printf("[geoip] lookup result: ip=%v, name=%s, result=%v", ip, mw.name, result)
 	}
 
-	// Add the headers we have data for.
+	// Set the headers.
+	setHeaders(req, result)
+
+	return req
+}
+
+// ServeHTTP implements the middleware interface.
+func (mw *TraefikGeoIP) ServeHTTP(reqWr http.ResponseWriter, req *http.Request) {
+	req = mw.processRequest(req)
+
+	mw.next.ServeHTTP(reqWr, req)
+}
+
+// SetHeaders Set geo headers.
+func setHeaders(req *http.Request, result *GeoIPResult) {
 	if result.country != Unknown {
 		req.Header.Set(CountryHeader, result.country)
 	}
@@ -205,14 +215,4 @@ func (mw *TraefikGeoIP) ProcessRequest(req *http.Request) *http.Request {
 	if result.geohash != Unknown {
 		req.Header.Set(GeohashHeader, result.geohash)
 	}
-
-	return req
-}
-
-// ServeHTTP implements the middleware interface.
-func (mw *TraefikGeoIP) ServeHTTP(reqWr http.ResponseWriter, req *http.Request) {
-	// Process the request.
-	req = mw.ProcessRequest(req)
-
-	mw.next.ServeHTTP(reqWr, req)
 }

@@ -1,3 +1,7 @@
 # github.com/IncSW/geoip2 v0.1.1
 ## explicit; go 1.14
 github.com/IncSW/geoip2
+# github.com/dgryski/go-tinylfu v0.0.0-20230408121034-c8e5d79bbb04
+## explicit; go 1.20
+github.com/dgryski/go-tinylfu
+github.com/dgryski/go-tinylfu/internal/list

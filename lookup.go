@@ -1,23 +1,17 @@
-package traefik_geoip
+package traefik_geoip //nolint:revive,stylecheck
 
 import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 
-	"github.com/IncSW/geoip2"
+	"github.com/IncSW/geoip2" //nolint:depguard
 )
 
-// Unknown constant for undefined data.
-const Unknown = "XX"
-
-// DefaultDBPath default GeoIP2 database path.
-const DefaultDBPath = "GeoLite2-Country.mmdb"
-
-// DefaultDebug default debug.
-const DefaultDebug = false
-
 const (
+	// Unknown constant for undefined data.
+	Unknown = "XX"
 	// CountryHeader country header name.
 	CountryHeader = "GeoIP-Country"
 	// CountryCodeHeader country code header name.
@@ -34,7 +28,7 @@ const (
 	GeohashHeader = "GeoIP-Geohash"
 )
 
-// GeoIPResult GeoIPResult.
+// GeoIPResult in memory, this should have between 126 and 180 bytes. On average, consider 150 bytes.
 type GeoIPResult struct {
 	country     string
 	countryCode string
@@ -48,8 +42,8 @@ type GeoIPResult struct {
 // LookupGeoIP LookupGeoIP.
 type LookupGeoIP func(ip net.IP) (*GeoIPResult, error)
 
-// CreateCityDBLookup CreateCityDBLookup.
-func CreateCityDBLookup(rdr *geoip2.CityReader) LookupGeoIP {
+// newCityDBLookup Create a new CityDBLookup.
+func newCityDBLookup(rdr *geoip2.CityReader) LookupGeoIP {
 	return func(ip net.IP) (*GeoIPResult, error) {
 		rec, err := rdr.Lookup(ip)
 		if err != nil {
@@ -62,7 +56,7 @@ func CreateCityDBLookup(rdr *geoip2.CityReader) LookupGeoIP {
 			city:        Unknown,
 			latitude:    strconv.FormatFloat(rec.Location.Latitude, 'f', -1, 64),
 			longitude:   strconv.FormatFloat(rec.Location.Longitude, 'f', -1, 64),
-			geohash:     Encode(rec.Location.Latitude, rec.Location.Longitude),
+			geohash:     EncodeGeoHash(rec.Location.Latitude, rec.Location.Longitude),
 		}
 		if country, ok := rec.Country.Names["en"]; ok {
 			retval.country = country
@@ -77,8 +71,8 @@ func CreateCityDBLookup(rdr *geoip2.CityReader) LookupGeoIP {
 	}
 }
 
-// CreateCountryDBLookup CreateCountryDBLookup.
-func CreateCountryDBLookup(rdr *geoip2.CountryReader) LookupGeoIP {
+// newCountryDBLookup Create a new CountryDBLookup.
+func newCountryDBLookup(rdr *geoip2.CountryReader) LookupGeoIP {
 	return func(ip net.IP) (*GeoIPResult, error) {
 		rec, err := rdr.Lookup(ip)
 		if err != nil {
@@ -98,4 +92,51 @@ func CreateCountryDBLookup(rdr *geoip2.CountryReader) LookupGeoIP {
 		}
 		return &retval, nil
 	}
+}
+
+func newCacheWrapper(lookup LookupGeoIP, cacheSize int) LookupGeoIP {
+	cache := NewCache(cacheSize)
+
+	return func(ip net.IP) (*GeoIPResult, error) {
+		if result, ok := cache.Get(ip.String()); ok {
+			return &result, nil
+		}
+
+		result, err := lookup(ip)
+		if err != nil {
+			return nil, err
+		}
+
+		cache.Add(ip.String(), *result)
+
+		return result, nil
+	}
+}
+
+// NewLookup Create a new Lookup.
+func NewLookup(dbPath string, cacheSize int) (LookupGeoIP, error) {
+	var lookup LookupGeoIP
+
+	switch {
+	case strings.Contains(dbPath, "City"):
+		rdr, err := geoip2.NewCityReaderFromFile(dbPath)
+		if err != nil {
+			return nil, err
+		}
+		lookup = newCityDBLookup(rdr)
+
+	case strings.Contains(dbPath, "Country"):
+		rdr, err := geoip2.NewCountryReaderFromFile(dbPath)
+		if err != nil {
+			return nil, err
+		}
+		lookup = newCountryDBLookup(rdr)
+
+	default:
+		return nil, fmt.Errorf("unable to parse Geo DB type: db=%s", dbPath)
+	}
+
+	cachedLookup := newCacheWrapper(lookup, cacheSize)
+
+	return cachedLookup, nil
 }

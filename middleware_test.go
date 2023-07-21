@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	mw "github.com/Maronato/traefik_geoip"
+	mw "github.com/Maronato/traefik_geoip" //nolint:depguard
 )
 
 const (
@@ -22,16 +22,15 @@ func TestGeoIPConfig(t *testing.T) {
 	}
 
 	mwCfg.DBPath = "./non-existing"
-	mw.ResetLookup()
 	_, err := mw.New(context.TODO(), nil, mwCfg, "")
-	if err != nil {
-		t.Fatalf("Must not fail on missing DB")
+	if err == nil {
+		t.Fatalf("Must fail on missing DB")
 	}
 
-	mwCfg.DBPath = "justfile"
+	mwCfg.DBPath = "./README.md"
 	_, err = mw.New(context.TODO(), nil, mwCfg, "")
-	if err != nil {
-		t.Fatalf("Must not fail on invalid DB format")
+	if err == nil {
+		t.Fatalf("Must fail on invalid DB format")
 	}
 }
 
@@ -42,8 +41,7 @@ func TestGeoIPBasic(t *testing.T) {
 	called := false
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) { called = true })
 
-	mw.ResetLookup()
-	instance, err := mw.New(context.TODO(), next, mwCfg, "traefik-")
+	instance, err := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
 	if err != nil {
 		t.Fatalf("Error creating %v", err)
 	}
@@ -64,32 +62,12 @@ func TestMissingGeoIPDB(t *testing.T) {
 	mwCfg := mw.CreateConfig()
 	mwCfg.DBPath = "./missing"
 
-	called := false
-	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) { called = true })
+	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 
-	mw.ResetLookup()
-	instance, err := mw.New(context.TODO(), next, mwCfg, "traefik-")
-	if err != nil {
-		t.Fatalf("Error creating %v", err)
+	_, err := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
+	if err == nil {
+		t.Fatalf("Did not abort creation after an invalid DB: %v", err)
 	}
-
-	recorder := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
-	req.RemoteAddr = "1.2.3.4"
-
-	instance.ServeHTTP(recorder, req)
-	if recorder.Result().StatusCode != http.StatusOK {
-		t.Fatalf("Invalid return code")
-	}
-	if called != true {
-		t.Fatalf("next handler was not called")
-	}
-	assertHeader(t, req, mw.CountryHeader, "")
-	assertHeader(t, req, mw.CountryCodeHeader, "")
-	assertHeader(t, req, mw.RegionHeader, "")
-	assertHeader(t, req, mw.CityHeader, "")
-	assertHeader(t, req, mw.LatitudeHeader, "")
-	assertHeader(t, req, mw.LongitudeHeader, "")
 }
 
 func TestGeoIPFromRemoteAddr(t *testing.T) {
@@ -98,7 +76,6 @@ func TestGeoIPFromRemoteAddr(t *testing.T) {
 	mwCfg.Debug = true
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
-	mw.ResetLookup()
 	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
 
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
@@ -140,7 +117,6 @@ func TestGeoIPCountryDBFromRemoteAddr(t *testing.T) {
 	mwCfg.DBPath = "./GeoLite2-Country.mmdb"
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
-	mw.ResetLookup()
 	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
 
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
@@ -163,7 +139,6 @@ func TestIgnoresExcludedIPs(t *testing.T) {
 	mwCfg.ExcludeIPs = []string{ValidIP}
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
-	mw.ResetLookup()
 	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
 
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
@@ -185,7 +160,6 @@ func TestHandleInvalidExcludeIP(t *testing.T) {
 	mwCfg.ExcludeIPs = []string{"invalid"}
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
-	mw.ResetLookup()
 	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
 
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
@@ -206,11 +180,41 @@ func TestGeoIPFromXForwardedFor(t *testing.T) {
 	mwCfg.Debug = true
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
-	mw.ResetLookup()
 	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
 
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.Header.Set("X-Forwarded-For", ValidIP+", 192.168.1.1")
+	instance.ServeHTTP(httptest.NewRecorder(), req)
+	assertHeader(t, req, mw.CountryHeader, "Germany")
+	assertHeader(t, req, mw.CountryCodeHeader, "DE")
+	assertHeader(t, req, mw.RegionHeader, "BY")
+	assertHeader(t, req, mw.CityHeader, "Munich")
+	assertHeader(t, req, mw.LatitudeHeader, "48.1663")
+	assertHeader(t, req, mw.LongitudeHeader, "11.5683")
+	assertHeader(t, req, mw.GeohashHeader, "u284p0rv0cje")
+}
+
+func TestReturnsCachedResult(t *testing.T) {
+	mwCfg := mw.CreateConfig()
+	mwCfg.DBPath = "./GeoLite2-City.mmdb"
+	mwCfg.Debug = true
+
+	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
+	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
+
+	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
+	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
+	instance.ServeHTTP(httptest.NewRecorder(), req)
+	assertHeader(t, req, mw.CountryHeader, "Germany")
+	assertHeader(t, req, mw.CountryCodeHeader, "DE")
+	assertHeader(t, req, mw.RegionHeader, "BY")
+	assertHeader(t, req, mw.CityHeader, "Munich")
+	assertHeader(t, req, mw.LatitudeHeader, "48.1663")
+	assertHeader(t, req, mw.LongitudeHeader, "11.5683")
+	assertHeader(t, req, mw.GeohashHeader, "u284p0rv0cje")
+
+	req = httptest.NewRequest(http.MethodGet, "http://localhost", nil)
+	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
 	instance.ServeHTTP(httptest.NewRecorder(), req)
 	assertHeader(t, req, mw.CountryHeader, "Germany")
 	assertHeader(t, req, mw.CountryCodeHeader, "DE")

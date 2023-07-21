@@ -21,63 +21,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// Package geohash provides encoding and decoding of string and integer
-// geohashes.
-package traefik_geoip
+package traefik_geoip //nolint:revive,stylecheck
 
-import (
-	"math"
-)
-
-// Direction represents directions in the latitute/longitude space.
-type Direction int
-
-// Cardinal and intercardinal directions.
-const (
-	North Direction = iota
-	NorthEast
-	East
-	SouthEast
-	South
-	SouthWest
-	West
-	NorthWest
-)
-
-// Encode the point (lat, lng) as a string geohash with the standard 12
-// characters of precision.
-func Encode(lat, lng float64) string {
-	return EncodeWithPrecision(lat, lng, 12)
+// base32Encode bits of 64-bit word into a string.
+func base32Encode(x uint64) string {
+	alphabet := "0123456789bcdefghjkmnpqrstuvwxyz"
+	b := [12]byte{}
+	for i := 0; i < 12; i++ {
+		b[11-i] = alphabet[x&0x1f]
+		x >>= 5
+	}
+	return string(b[:])
 }
-
-// EncodeWithPrecision encodes the point (lat, lng) as a string geohash with
-// the specified number of characters of precision (max 12).
-func EncodeWithPrecision(lat, lng float64, chars uint) string {
-	bits := 5 * chars
-	inthash := EncodeIntWithPrecision(lat, lng, bits)
-	enc := base32encoding.Encode(inthash)
-	return enc[12-chars:]
-}
-
-// EncodeInt encodes the point (lat, lng) to a 64-bit integer geohash.
-func EncodeInt(lat, lng float64) uint64 {
-	latInt := encodeRange(lat, 90)
-	lngInt := encodeRange(lng, 180)
-	return interleave(latInt, lngInt)
-}
-
-// EncodeIntWithPrecision encodes the point (lat, lng) to an integer with the
-// specified number of bits.
-func EncodeIntWithPrecision(lat, lng float64, bits uint) uint64 {
-	hash := EncodeInt(lat, lng)
-	return hash >> (64 - bits)
-}
-
-// precalculated for performance.
-var exp232 = math.Exp2(32)
 
 // Encode the position of x within the range -r to +r as a 32-bit integer.
 func encodeRange(x, r float64) uint32 {
+	const exp232 = 4_294_967_296 // 2^32
+
 	p := (x + r) / (2 * r)
 	return uint32(p * exp232)
 }
@@ -98,4 +58,33 @@ func spread(x uint32) uint64 {
 // bitlevels, respectively.
 func interleave(x, y uint32) uint64 {
 	return spread(x) | (spread(y) << 1)
+}
+
+// encodeInt encodes the point (lat, lng) to a 64-bit integer geohash.
+func encodeInt(lat, lng float64) uint64 {
+	latInt := encodeRange(lat, 90)
+	lngInt := encodeRange(lng, 180)
+	return interleave(latInt, lngInt)
+}
+
+// EncodeIntWithPrecision encodes the point (lat, lng) to an integer with the
+// specified number of bits.
+func encodeIntWithPrecision(lat, lng float64, bits uint) uint64 {
+	hash := encodeInt(lat, lng)
+	return hash >> (64 - bits)
+}
+
+// encodeWithPrecision encodes the point (lat, lng) as a string geohash with
+// the specified number of characters of precision (max 12).
+func encodeWithPrecision(lat, lng float64, chars uint) string {
+	bits := 5 * chars
+	inthash := encodeIntWithPrecision(lat, lng, bits)
+	enc := base32Encode(inthash)
+	return enc[12-chars:]
+}
+
+// EncodeGeoHash the point (lat, lng) as a string geohash with the standard 12
+// characters of precision.
+func EncodeGeoHash(lat, lng float64) string {
+	return encodeWithPrecision(lat, lng, 12)
 }
