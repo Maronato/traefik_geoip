@@ -1,4 +1,4 @@
 FROM traefik:2.4.9
 
-COPY GeoLite2-City.mmdb /var/lib/traefikgeoip/ 
+COPY GeoLite2-City.mmdb /var/lib/traefik_geoip/ 
 

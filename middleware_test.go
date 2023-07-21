@@ -1,4 +1,4 @@
-package traefikgeoip_test
+package traefik_geoip_test
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package traefikgeoip
+package traefik_geoip
 
 import (
 	"fmt"
