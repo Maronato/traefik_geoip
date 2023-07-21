@@ -22,14 +22,14 @@ test-yaegi: && _clean-yaegi
   #!/usr/bin/env bash
 
   TMP=$(mktemp -d yaegi.XXXXXX -p /tmp)
-  WRK="${TMP}/go/src/github.com/GiGInnovationLabs"
+  WRK="${TMP}/go/src/github.com/Maronato"
   mkdir -p ${WRK}
   ln -s `pwd` "${WRK}"
   cd "${WRK}/$(basename `pwd`)"
   env GOPATH="${TMP}/go" yaegi test -v .
 
 # lint and test
-test: _prepare lint test-go test-yaegi
+test: _prepare test-go test-yaegi
 
 clean:
   rm -rf *.mmdb
