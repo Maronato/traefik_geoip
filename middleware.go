@@ -47,6 +47,10 @@ type TraefikGeoIP struct {
 func New(_ context.Context, next http.Handler, cfg *Config, name string) (http.Handler, error) {
 	debug = cfg.Debug
 
+	if debug {
+		log.Printf("[geoip] setting up plugin: config=%v", cfg)
+	}
+
 	if _, err := os.Stat(cfg.DBPath); err != nil {
 		if debug {
 			log.Printf("[geoip] DB not found: db=%s, name=%s, err=%v", cfg.DBPath, name, err)
@@ -128,6 +132,9 @@ func (mw *TraefikGeoIP) isExcluded(ip net.IP) bool {
 func (mw *TraefikGeoIP) ProcessRequest(req *http.Request) *http.Request {
 	// Only process if the plugin was initialized
 	if lookup == nil {
+		if debug {
+			log.Printf("[geoip] lookup is not initialized: name=%s", mw.name)
+		}
 		return req
 	}
 
@@ -141,6 +148,9 @@ func (mw *TraefikGeoIP) ProcessRequest(req *http.Request) *http.Request {
 
 	// Only process IPs not in the exclude list.
 	if mw.isExcluded(ip) {
+		if debug {
+			log.Printf("[geoip] IP excluded: ip=%s, name=%s", ipStr, mw.name)
+		}
 		return req
 	}
 
@@ -151,6 +161,10 @@ func (mw *TraefikGeoIP) ProcessRequest(req *http.Request) *http.Request {
 			log.Printf("[geoip] lookup error: ip=%s, name=%s, err=%v", ipStr, mw.name, err)
 		}
 		return req
+	}
+
+	if debug {
+		log.Printf("[geoip] lookup result: ip=%s, name=%s, result=%v", ipStr, mw.name, result)
 	}
 
 	// Add the headers we have data for.
