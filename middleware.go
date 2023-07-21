@@ -138,13 +138,29 @@ func (mw *TraefikGeoIP) ProcessRequest(req *http.Request) *http.Request {
 		return req
 	}
 
-	// Get the remote IP and parse the host if needed.
-	ipStr := req.RemoteAddr
-	host, _, err := net.SplitHostPort(ipStr)
-	if err == nil {
-		ipStr = host
+	// Get first IP from X-Forwarded-For header if it exists.
+	ipStr := ""
+	if xff := req.Header.Get("X-Forwarded-For"); xff != "" {
+		ips := strings.Split(xff, ",")
+		if len(ips) > 0 {
+			ipStr = strings.TrimSpace(ips[0])
+		}
 	}
+
+	// If X-Forwarded-For header is empty, get the remote IP.
+	if ipStr == "" {
+		ipStr = req.RemoteAddr
+		host, _, err := net.SplitHostPort(ipStr)
+		if err == nil {
+			ipStr = host
+		}
+	}
+
+	// Parse the IP.
 	ip := net.ParseIP(ipStr)
+
+	// Set X-Real-Ip header because traefik sometimes messes with it.
+	req.Header.Set("X-Real-IP", ipStr)
 
 	// Only process IPs not in the exclude list.
 	if mw.isExcluded(ip) {

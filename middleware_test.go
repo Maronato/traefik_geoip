@@ -194,6 +194,26 @@ func TestHandleInvalidExcludeIP(t *testing.T) {
 	assertHeader(t, req, mw.LongitudeHeader, "11.5683")
 }
 
+func TestGeoIPFromXForwardedFor(t *testing.T) {
+	mwCfg := mw.CreateConfig()
+	mwCfg.DBPath = "./GeoLite2-City.mmdb"
+	mwCfg.Debug = true
+
+	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
+	mw.ResetLookup()
+	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
+
+	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
+	req.Header.Set("X-Forwarded-For", ValidIP+", 192.168.1.1")
+	instance.ServeHTTP(httptest.NewRecorder(), req)
+	assertHeader(t, req, mw.CountryHeader, "Germany")
+	assertHeader(t, req, mw.CountryCodeHeader, "DE")
+	assertHeader(t, req, mw.RegionHeader, "BY")
+	assertHeader(t, req, mw.CityHeader, "Munich")
+	assertHeader(t, req, mw.LatitudeHeader, "48.1663")
+	assertHeader(t, req, mw.LongitudeHeader, "11.5683")
+}
+
 func assertHeader(t *testing.T, req *http.Request, key, expected string) {
 	t.Helper()
 	if req.Header.Get(key) != expected {
