@@ -45,11 +45,12 @@ type TraefikGeoIP struct {
 
 // New created a new TraefikGeoIP plugin.
 func New(_ context.Context, next http.Handler, cfg *Config, name string) (http.Handler, error) {
-
 	debug = cfg.Debug
 
 	if _, err := os.Stat(cfg.DBPath); err != nil {
-		log.Printf("[geoip] DB not found: db=%s, name=%s, err=%v", cfg.DBPath, name, err)
+		if debug {
+			log.Printf("[geoip] DB not found: db=%s, name=%s, err=%v", cfg.DBPath, name, err)
+		}
 		return &TraefikGeoIP{
 			next: next,
 			name: name,
@@ -59,37 +60,46 @@ func New(_ context.Context, next http.Handler, cfg *Config, name string) (http.H
 	if lookup == nil && strings.Contains(cfg.DBPath, "City") {
 		rdr, err := geoip2.NewCityReaderFromFile(cfg.DBPath)
 		if err != nil {
-			log.Printf("[geoip] lookup DB is not initialized: db=%s, name=%s, err=%v", cfg.DBPath, name, err)
+			if debug {
+				log.Printf("[geoip] lookup DB is not initialized: db=%s, name=%s, err=%v", cfg.DBPath, name, err)
+			}
 		} else {
 			lookup = CreateCityDBLookup(rdr)
-			log.Printf("[geoip] lookup DB initialized: db=%s, name=%s, lookup=%v", cfg.DBPath, name, lookup)
+			if debug {
+				log.Printf("[geoip] lookup DB initialized: db=%s, name=%s, lookup=%v", cfg.DBPath, name, lookup)
+			}
 		}
 	}
 
 	if lookup == nil && strings.Contains(cfg.DBPath, "Country") {
 		rdr, err := geoip2.NewCountryReaderFromFile(cfg.DBPath)
 		if err != nil {
-			log.Printf("[geoip] lookup DB is not initialized: db=%s, name=%s, err=%v", cfg.DBPath, name, err)
+			if debug {
+				log.Printf("[geoip] lookup DB is not initialized: db=%s, name=%s, err=%v", cfg.DBPath, name, err)
+			}
 		} else {
 			lookup = CreateCountryDBLookup(rdr)
-			log.Printf("[geoip] lookup DB initialized: db=%s, name=%s, lookup=%v", cfg.DBPath, name, lookup)
+			if debug {
+				log.Printf("[geoip] lookup DB initialized: db=%s, name=%s, lookup=%v", cfg.DBPath, name, lookup)
+			}
 		}
 	}
 
-	log.Println("Parsing excluded IPs")
 	// Parse CIDRs and store them in a slice for exclusion.
 	excludedIPs := []*net.IPNet{}
 	for _, v := range cfg.ExcludeIPs {
 		// Check if it is a single IP.
 		if net.ParseIP(v) != nil {
 			// Make the IP into a /32.
-			v = v + "/32"
+			v += "/32"
 		}
 		// Now parse the value as CIDR.
 		_, excludedNet, err := net.ParseCIDR(v)
 		if err != nil {
 			// Ignore invalid CIDRs and continue.
-			log.Printf("[geoip] invalid CIDR: cidr=%s, name=%s, err=%v", v, name, err)
+			if debug {
+				log.Printf("[geoip] invalid CIDR: cidr=%s, name=%s, err=%v", v, name, err)
+			}
 			continue
 		}
 
@@ -168,7 +178,6 @@ func (mw *TraefikGeoIP) ProcessRequest(req *http.Request) *http.Request {
 
 // ServeHTTP implements the middleware interface.
 func (mw *TraefikGeoIP) ServeHTTP(reqWr http.ResponseWriter, req *http.Request) {
-
 	// Process the request.
 	req = mw.ProcessRequest(req)
 
