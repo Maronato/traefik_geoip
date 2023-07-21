@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/IncSW/geoip2"
-	"github.com/mmcloughlin/geohash"
 )
 
 // Unknown constant for undefined data.
@@ -63,7 +62,7 @@ func CreateCityDBLookup(rdr *geoip2.CityReader) LookupGeoIP {
 			city:        Unknown,
 			latitude:    strconv.FormatFloat(rec.Location.Latitude, 'f', -1, 64),
 			longitude:   strconv.FormatFloat(rec.Location.Longitude, 'f', -1, 64),
-			geohash:     geohash.Encode(rec.Location.Latitude, rec.Location.Longitude),
+			geohash:     Encode(rec.Location.Latitude, rec.Location.Longitude),
 		}
 		if country, ok := rec.Country.Names["en"]; ok {
 			retval.country = country
