@@ -202,6 +202,9 @@ func (mw *TraefikGeoIP) ProcessRequest(req *http.Request) *http.Request {
 	if result.longitude != Unknown {
 		req.Header.Set(LongitudeHeader, result.longitude)
 	}
+	if result.geohash != Unknown {
+		req.Header.Set(GeohashHeader, result.geohash)
+	}
 
 	return req
 }

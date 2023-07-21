@@ -110,6 +110,7 @@ func TestGeoIPFromRemoteAddr(t *testing.T) {
 	assertHeader(t, req, mw.CityHeader, "Munich")
 	assertHeader(t, req, mw.LatitudeHeader, "48.1663")
 	assertHeader(t, req, mw.LongitudeHeader, "11.5683")
+	assertHeader(t, req, mw.GeohashHeader, "u284p0rv0cje")
 
 	req = httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIPNoCity)
@@ -120,6 +121,7 @@ func TestGeoIPFromRemoteAddr(t *testing.T) {
 	assertHeader(t, req, mw.CityHeader, "")
 	assertHeader(t, req, mw.LatitudeHeader, "37.751")
 	assertHeader(t, req, mw.LongitudeHeader, "-97.822")
+	assertHeader(t, req, mw.GeohashHeader, "9ydqy025w0qn")
 
 	req = httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.RemoteAddr = "qwerty:9999"
@@ -130,6 +132,7 @@ func TestGeoIPFromRemoteAddr(t *testing.T) {
 	assertHeader(t, req, mw.CityHeader, "")
 	assertHeader(t, req, mw.LatitudeHeader, "")
 	assertHeader(t, req, mw.LongitudeHeader, "")
+	assertHeader(t, req, mw.GeohashHeader, "")
 }
 
 func TestGeoIPCountryDBFromRemoteAddr(t *testing.T) {
@@ -150,6 +153,7 @@ func TestGeoIPCountryDBFromRemoteAddr(t *testing.T) {
 	assertHeader(t, req, mw.CityHeader, "")
 	assertHeader(t, req, mw.LatitudeHeader, "")
 	assertHeader(t, req, mw.LongitudeHeader, "")
+	assertHeader(t, req, mw.GeohashHeader, "")
 }
 
 func TestIgnoresExcludedIPs(t *testing.T) {
@@ -171,6 +175,7 @@ func TestIgnoresExcludedIPs(t *testing.T) {
 	assertHeader(t, req, mw.CityHeader, "")
 	assertHeader(t, req, mw.LatitudeHeader, "")
 	assertHeader(t, req, mw.LongitudeHeader, "")
+	assertHeader(t, req, mw.GeohashHeader, "")
 }
 
 func TestHandleInvalidExcludeIP(t *testing.T) {
@@ -192,6 +197,7 @@ func TestHandleInvalidExcludeIP(t *testing.T) {
 	assertHeader(t, req, mw.CityHeader, "Munich")
 	assertHeader(t, req, mw.LatitudeHeader, "48.1663")
 	assertHeader(t, req, mw.LongitudeHeader, "11.5683")
+	assertHeader(t, req, mw.GeohashHeader, "u284p0rv0cje")
 }
 
 func TestGeoIPFromXForwardedFor(t *testing.T) {
@@ -212,6 +218,7 @@ func TestGeoIPFromXForwardedFor(t *testing.T) {
 	assertHeader(t, req, mw.CityHeader, "Munich")
 	assertHeader(t, req, mw.LatitudeHeader, "48.1663")
 	assertHeader(t, req, mw.LongitudeHeader, "11.5683")
+	assertHeader(t, req, mw.GeohashHeader, "u284p0rv0cje")
 }
 
 func assertHeader(t *testing.T, req *http.Request, key, expected string) {

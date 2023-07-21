@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/IncSW/geoip2"
+	"github.com/mmcloughlin/geohash"
 )
 
 // Unknown constant for undefined data.
@@ -30,6 +31,8 @@ const (
 	LatitudeHeader = "GeoIP-Latitude"
 	// LongitudeHeader longitude header name.
 	LongitudeHeader = "GeoIP-Longitude"
+	// GeohashHeader geohash header name.
+	GeohashHeader = "GeoIP-Geohash"
 )
 
 // GeoIPResult GeoIPResult.
@@ -40,6 +43,7 @@ type GeoIPResult struct {
 	city        string
 	latitude    string
 	longitude   string
+	geohash     string
 }
 
 // LookupGeoIP LookupGeoIP.
@@ -59,6 +63,7 @@ func CreateCityDBLookup(rdr *geoip2.CityReader) LookupGeoIP {
 			city:        Unknown,
 			latitude:    strconv.FormatFloat(rec.Location.Latitude, 'f', -1, 64),
 			longitude:   strconv.FormatFloat(rec.Location.Longitude, 'f', -1, 64),
+			geohash:     geohash.Encode(rec.Location.Latitude, rec.Location.Longitude),
 		}
 		if country, ok := rec.Country.Names["en"]; ok {
 			retval.country = country
@@ -87,6 +92,7 @@ func CreateCountryDBLookup(rdr *geoip2.CountryReader) LookupGeoIP {
 			city:        Unknown,
 			latitude:    Unknown,
 			longitude:   Unknown,
+			geohash:     Unknown,
 		}
 		if country, ok := rec.Country.Names["en"]; ok {
 			retval.country = country
