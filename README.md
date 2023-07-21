@@ -8,7 +8,6 @@ This is a modified version of [GiGInnovationLabs/traefikgeoip2](https://github.c
 - It doesn't add a header if its value could not be determined
 - To get the client's IP, it looks for it first in the `X-Forwarded-For` header and, if it's not there, it takes it from `req.remoteAddr`
 - I had issues with Traefik not using the correct IP in `X-Real-IP`, so there's also a flag `setRealIP: true` that resets the header to the IP found in `X-Forwarded-For`.
-- Added a cache layer to the lookup, based on [TinyLFU](https://github.com/dgryski/go-tinylfu) and controlled by `cacheSize: int`
 ---
 
 [Traefik](https://doc.traefik.io/traefik/) plugin 

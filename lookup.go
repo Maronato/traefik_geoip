@@ -95,7 +95,7 @@ func newCountryDBLookup(rdr *geoip2.CountryReader) LookupGeoIP {
 }
 
 // NewLookup Create a new Lookup.
-func NewLookup(dbPath string, cacheSize int) (LookupGeoIP, error) {
+func NewLookup(dbPath string) (LookupGeoIP, error) {
 	var lookup LookupGeoIP
 
 	switch {

@@ -17,8 +17,6 @@ const (
 	defaultDebug = false
 	// defaultSetRealIP default set real IP.
 	defaultSetRealIP = false
-	// defaultCacheSize default cache size.
-	defaultCacheSize = 1000
 )
 
 // Config the plugin configuration.
@@ -27,7 +25,6 @@ type Config struct {
 	Debug      bool     `json:"debug,omitempty"`
 	ExcludeIPs []string `json:"excludeIPs,omitempty"`
 	SetRealIP  bool     `json:"setRealIP,omitempty"` //nolint:tagliatelle
-	CacheSize  int      `json:"cacheSize,omitempty"`
 }
 
 // CreateConfig creates the default plugin configuration.
@@ -37,7 +34,6 @@ func CreateConfig() *Config {
 		Debug:      defaultDebug,
 		ExcludeIPs: []string{},
 		SetRealIP:  defaultSetRealIP,
-		CacheSize:  defaultCacheSize,
 	}
 }
 
@@ -64,7 +60,7 @@ func New(_ context.Context, next http.Handler, cfg *Config, name string) (http.H
 	}
 
 	// Initialize the lookup DB.
-	lookup, err := NewLookup(cfg.DBPath, cfg.CacheSize)
+	lookup, err := NewLookup(cfg.DBPath)
 	if err != nil {
 		if debug {
 			log.Printf("[geoip] error initializing lookup: err=%v", err)
