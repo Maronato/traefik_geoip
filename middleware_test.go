@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	mw "github.com/Maronato/traefik-geoip"
+	mw "github.com/Maronato/traefik_geoip"
 )
 
 const (
@@ -99,7 +99,7 @@ func TestGeoIPFromRemoteAddr(t *testing.T) {
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 	mw.ResetLookup()
-	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik-geoip")
+	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
 
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
@@ -138,7 +138,7 @@ func TestGeoIPCountryDBFromRemoteAddr(t *testing.T) {
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 	mw.ResetLookup()
-	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik-geoip")
+	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
 
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
@@ -160,7 +160,7 @@ func TestIgnoresExcludedIPs(t *testing.T) {
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 	mw.ResetLookup()
-	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik-geoip")
+	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
 
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
@@ -181,7 +181,7 @@ func TestHandleInvalidExcludeIP(t *testing.T) {
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 	mw.ResetLookup()
-	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik-geoip")
+	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
 
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
