@@ -94,25 +94,6 @@ func newCountryDBLookup(rdr *geoip2.CountryReader) LookupGeoIP {
 	}
 }
 
-func newCacheWrapper(lookup LookupGeoIP, cacheSize int) LookupGeoIP {
-	cache := NewCache(cacheSize)
-
-	return func(ip net.IP) (*GeoIPResult, error) {
-		if result, ok := cache.Get(ip.String()); ok {
-			return &result, nil
-		}
-
-		result, err := lookup(ip)
-		if err != nil {
-			return nil, err
-		}
-
-		cache.Add(ip.String(), *result)
-
-		return result, nil
-	}
-}
-
 // NewLookup Create a new Lookup.
 func NewLookup(dbPath string, cacheSize int) (LookupGeoIP, error) {
 	var lookup LookupGeoIP
@@ -136,7 +117,5 @@ func NewLookup(dbPath string, cacheSize int) (LookupGeoIP, error) {
 		return nil, fmt.Errorf("unable to parse Geo DB type: db=%s", dbPath)
 	}
 
-	cachedLookup := newCacheWrapper(lookup, cacheSize)
-
-	return cachedLookup, nil
+	return lookup, nil
 }

@@ -1,4 +1,2 @@
 github.com/IncSW/geoip2 v0.1.1 h1:afzzYF7n9JbdcPy8aiBSgBJuXi4mTWXZ3z6V3o6Vg34=
 github.com/IncSW/geoip2 v0.1.1/go.mod h1:adcasR40vXiUBjtzdaTTKL/6wSf+fgO4M8Gve/XzPUk=
-github.com/dgryski/go-tinylfu v0.0.0-20230408121034-c8e5d79bbb04 h1:KfJuUjcn6CWRMluEAcZb/zqhml0P6rsxAHtSTetvqQ8=
-github.com/dgryski/go-tinylfu v0.0.0-20230408121034-c8e5d79bbb04/go.mod h1:f50PMO4C1x0o341KZt49XtmTpf4LP/JXjxzWuRQEMHw=

@@ -34,7 +34,7 @@ jobs:
       #     version: ${{ env.GOLANGCI_LINT_VERSION }}
       #     args: "--help"
       - name: setup yaegi
-        run: curl -sfL https://raw.githubusercontent.com/traefik/yaegi/master/install.sh | bash -s -- -b /home/runner/.local/bin ${YAEGI_VERSION}
+        run: curl -sfL https://raw.githubusercontent.com/traefik/yaegi/master/install.sh | bash -s -- -b /usr/local/bin ${YAEGI_VERSION}
       - uses: extractions/setup-just@v1
       - name: test
         run: just test

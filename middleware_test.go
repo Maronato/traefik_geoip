@@ -194,37 +194,6 @@ func TestGeoIPFromXForwardedFor(t *testing.T) {
 	assertHeader(t, req, mw.GeohashHeader, "u284p0rv0cje")
 }
 
-func TestReturnsCachedResult(t *testing.T) {
-	mwCfg := mw.CreateConfig()
-	mwCfg.DBPath = "./GeoLite2-City.mmdb"
-	mwCfg.Debug = true
-
-	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
-	instance, _ := mw.New(context.TODO(), next, mwCfg, "traefik_geoip")
-
-	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
-	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
-	instance.ServeHTTP(httptest.NewRecorder(), req)
-	assertHeader(t, req, mw.CountryHeader, "Germany")
-	assertHeader(t, req, mw.CountryCodeHeader, "DE")
-	assertHeader(t, req, mw.RegionHeader, "BY")
-	assertHeader(t, req, mw.CityHeader, "Munich")
-	assertHeader(t, req, mw.LatitudeHeader, "48.1663")
-	assertHeader(t, req, mw.LongitudeHeader, "11.5683")
-	assertHeader(t, req, mw.GeohashHeader, "u284p0rv0cje")
-
-	req = httptest.NewRequest(http.MethodGet, "http://localhost", nil)
-	req.RemoteAddr = fmt.Sprintf("%s:9999", ValidIP)
-	instance.ServeHTTP(httptest.NewRecorder(), req)
-	assertHeader(t, req, mw.CountryHeader, "Germany")
-	assertHeader(t, req, mw.CountryCodeHeader, "DE")
-	assertHeader(t, req, mw.RegionHeader, "BY")
-	assertHeader(t, req, mw.CityHeader, "Munich")
-	assertHeader(t, req, mw.LatitudeHeader, "48.1663")
-	assertHeader(t, req, mw.LongitudeHeader, "11.5683")
-	assertHeader(t, req, mw.GeohashHeader, "u284p0rv0cje")
-}
-
 func assertHeader(t *testing.T, req *http.Request, key, expected string) {
 	t.Helper()
 	if req.Header.Get(key) != expected {
